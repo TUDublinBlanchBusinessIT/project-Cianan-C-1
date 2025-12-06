@@ -8,15 +8,12 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  Share,
 } from 'react-native';
-
-import * as Sharing from 'expo-sharing';
-import * as Clipboard from 'expo-clipboard';
 
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
 
-// Pre-loaded prayers (cannot be edited)
 const DEFAULT_PRAYERS = [
   {
     id: '1',
@@ -48,7 +45,6 @@ export default function InspirationScreen() {
     if (!title.trim() || !text.trim()) return;
 
     if (editingId) {
-      // EDIT MODE
       setPrayers(prev =>
         prev.map(p =>
           p.id === editingId
@@ -58,14 +54,12 @@ export default function InspirationScreen() {
       );
       setEditingId(null);
     } else {
-      // ADD NEW
       const newPrayer = {
         id: Date.now().toString(),
         title: title.trim(),
         text: text.trim(),
         userCreated: true,
       };
-
       setPrayers(prev => [newPrayer, ...prev]);
     }
 
@@ -74,6 +68,7 @@ export default function InspirationScreen() {
   };
 
   const startEdit = (item) => {
+    if (!item.userCreated) return;
     setEditingId(item.id);
     setTitle(item.title);
     setText(item.text);
@@ -82,16 +77,14 @@ export default function InspirationScreen() {
   const sharePrayer = async (item) => {
     const content = `${item.title}\n\n${item.text}`;
 
-    if (await Sharing.isAvailableAsync()) {
-      // Native sharing (iOS / Android)
-      await Sharing.shareAsync(
-        undefined,
-        { dialogTitle: 'Share Prayer', mimeType: 'text/plain' }
-      ).catch(() => {});
-    } else {
-      // Web fallback: copy to clipboard
-      await Clipboard.setStringAsync(content);
-      Alert.alert('Copied!', 'Prayer text copied to clipboard.');
+    try {
+      await Share.share({
+        message: content,
+        title: item.title,
+      });
+    } catch (error) {
+      console.log('Share error:', error);
+      Alert.alert('Could not share', 'Something went wrong while sharing.');
     }
   };
 
@@ -106,7 +99,6 @@ export default function InspirationScreen() {
         value={title}
         onChangeText={setTitle}
       />
-
       <TextInput
         style={[styles.input, styles.textArea]}
         placeholder="Prayer Text"
@@ -157,14 +149,12 @@ export default function InspirationScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#FFF' },
-
   header: {
     fontSize: 26,
     fontWeight: '700',
     color: PURPLE,
     marginBottom: 16,
   },
-
   input: {
     borderWidth: 2,
     borderColor: GOLD,
@@ -172,12 +162,10 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
   },
-
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
-
   saveButton: {
     backgroundColor: '#FFF',
     borderWidth: 2,
@@ -187,12 +175,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-
   saveButtonText: {
     fontWeight: '600',
     color: PURPLE,
   },
-
   card: {
     padding: 14,
     borderWidth: 2,
@@ -201,24 +187,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: '#FFF',
   },
-
   titleText: {
     fontWeight: '700',
     fontSize: 16,
     color: PURPLE,
     marginBottom: 6,
   },
-
   contentText: {
     fontSize: 14,
     marginBottom: 10,
   },
-
   actionsRow: {
     flexDirection: 'row',
     gap: 10,
   },
-
   actionButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -226,7 +208,6 @@ const styles = StyleSheet.create({
     borderColor: GOLD,
     borderRadius: 8,
   },
-
   actionText: {
     color: PURPLE,
     fontWeight: '600',
