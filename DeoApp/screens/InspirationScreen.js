@@ -26,6 +26,7 @@ import {
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
 
+// Default built-in prayers (seeded once, shared for everyone)
 const DEFAULT_PRAYERS = [
   {
     title: 'Short Morning Offering',
@@ -47,17 +48,21 @@ export default function InspirationScreen() {
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState(null);
 
-  const uid = auth.currentUser?.uid;
-  if (!uid) return null;
+  const user = auth.currentUser;
+  const uid = user?.uid;
+  if (!uid) return null; // no logged-in user yet
 
-  const inspirationsRef = collection(db, 'users', uid, 'inspirations');
+  // 🔥 Shared global collection (everyone sees same prayers)
+  const inspirationsRef = collection(db, 'inspirations');
 
+  // Seed defaults if the collection is empty (only once globally)
   const seedDefaults = async () => {
     for (const item of DEFAULT_PRAYERS) {
       await addDoc(inspirationsRef, {
         title: item.title,
         text: item.text,
         userCreated: false,
+        ownerId: null,
         createdAt: serverTimestamp(),
       });
     }
@@ -81,13 +86,14 @@ export default function InspirationScreen() {
     });
 
     return unsubscribe;
-  }, [uid]);
+  }, []);
 
   const savePrayer = async () => {
     if (!title.trim() || !text.trim()) return;
 
     if (editingId) {
-      const ref = doc(db, 'users', uid, 'inspirations', editingId);
+      // 🔒 Only allow editing your own userCreated items
+      const ref = doc(db, 'inspirations', editingId);
       await updateDoc(ref, {
         title: title.trim(),
         text: text.trim(),
@@ -98,6 +104,7 @@ export default function InspirationScreen() {
         title: title.trim(),
         text: text.trim(),
         userCreated: true,
+        ownerId: uid,
         createdAt: serverTimestamp(),
       });
     }
@@ -107,7 +114,10 @@ export default function InspirationScreen() {
   };
 
   const startEdit = (item) => {
-    if (!item.userCreated) return;
+    // Only creator can edit their own userCreated prayers
+    if (!item.userCreated || item.ownerId !== uid) {
+      return;
+    }
     setEditingId(item.id);
     setTitle(item.title);
     setText(item.text);
@@ -127,6 +137,35 @@ export default function InspirationScreen() {
     }
   };
 
+  const renderItem = ({ item }) => {
+    const canEdit = item.userCreated && item.ownerId === uid;
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.titleText}>{item.title}</Text>
+        <Text style={styles.contentText}>{item.text}</Text>
+
+        <View style={styles.actionsRow}>
+          {canEdit && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => startEdit(item)}
+            >
+              <Text style={styles.actionText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => sharePrayer(item)}
+          >
+            <Text style={styles.actionText}>Share</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Prayer Inspiration</Text>
@@ -134,6 +173,7 @@ export default function InspirationScreen() {
         Use these when you don&apos;t know what to pray.
       </Text>
 
+      {/* Add / Edit form */}
       <TextInput
         style={styles.input}
         placeholder="Prayer Title"
@@ -154,34 +194,12 @@ export default function InspirationScreen() {
         </Text>
       </TouchableOpacity>
 
+      {/* Shared list of all prayers */}
       <FlatList
         data={prayers}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 50 }}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.titleText}>{item.title}</Text>
-            <Text style={styles.contentText}>{item.text}</Text>
-
-            <View style={styles.actionsRow}>
-              {item.userCreated && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => startEdit(item)}
-                >
-                  <Text style={styles.actionText}>Edit</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => sharePrayer(item)}
-              >
-                <Text style={styles.actionText}>Share</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        renderItem={renderItem}
       />
     </View>
   );
@@ -189,8 +207,16 @@ export default function InspirationScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#FFF' },
-  header: { fontSize: 26, fontWeight: '700', color: PURPLE, marginBottom: 4 },
-  subHeader: { marginBottom: 16, color: '#444' },
+  header: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: PURPLE,
+    marginBottom: 4,
+  },
+  subHeader: {
+    marginBottom: 16,
+    color: '#444',
+  },
   input: {
     borderWidth: 2,
     borderColor: GOLD,
@@ -198,7 +224,10 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
   },
-  textArea: { height: 80, textAlignVertical: 'top' },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
   saveButton: {
     backgroundColor: '#FFF',
     borderWidth: 2,
@@ -208,7 +237,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  saveButtonText: { fontWeight: '600', color: PURPLE },
+  saveButtonText: {
+    fontWeight: '600',
+    color: PURPLE,
+  },
   card: {
     padding: 14,
     borderWidth: 2,
@@ -223,8 +255,14 @@ const styles = StyleSheet.create({
     color: PURPLE,
     marginBottom: 6,
   },
-  contentText: { fontSize: 14, marginBottom: 10 },
-  actionsRow: { flexDirection: 'row', gap: 10 },
+  contentText: {
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   actionButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -232,5 +270,8 @@ const styles = StyleSheet.create({
     borderColor: GOLD,
     borderRadius: 8,
   },
-  actionText: { color: PURPLE, fontWeight: '600' },
+  actionText: {
+    color: PURPLE,
+    fontWeight: '600',
+  },
 });
