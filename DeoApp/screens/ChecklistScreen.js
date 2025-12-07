@@ -1,27 +1,68 @@
-
-import React, { useState } from 'react';
+// screens/ChecklistScreen.js
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Switch } from 'react-native';
+
+import { db } from '../firebaseConfig';
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
+const USER_ID = 'demoUser'; // same as HomeScreen
+
+const DEFAULT_ITEMS = [
+  { label: 'Morning Prayer' },
+  { label: 'Rosary' },
+  { label: 'Examination of Conscience' },
+  { label: 'Night Prayer' },
+];
 
 export default function ChecklistScreen() {
-  const [items, setItems] = useState([
-    { id: '1', label: 'Morning Prayer', done: false },
-    { id: '2', label: 'Rosary', done: false },
-    { id: '3', label: 'Examination of Conscience', done: false },
-    { id: '4', label: 'Night Prayer', done: false },
-  ]);
+  const [items, setItems] = useState([]);
 
-  const toggleItem = (id) => {
-    setItems(prev =>
-      prev.map(item =>
-        item.id === id ? { ...item, done: !item.done } : item
-      )
-    );
+  const checklistRef = collection(db, 'users', USER_ID, 'checklist');
+
+  // Seed defaults if checklist is empty
+  const seedDefaults = async () => {
+    for (const item of DEFAULT_ITEMS) {
+      await addDoc(checklistRef, {
+        label: item.label,
+        done: false,
+      });
+    }
   };
 
-  const completedCount = items.filter(item => item.done).length;
+  useEffect(() => {
+    const unsubscribe = onSnapshot(checklistRef, async (snapshot) => {
+      if (snapshot.empty) {
+        // first time: create default items
+        await seedDefaults();
+        return;
+      }
+
+      const list = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      setItems(list);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const toggleItem = async (id, currentValue) => {
+    const itemRef = doc(db, 'users', USER_ID, 'checklist', id);
+    await updateDoc(itemRef, { done: !currentValue });
+    // no need to manually set state – onSnapshot will fire again
+  };
+
+  const completedCount = items.filter((item) => item.done).length;
 
   return (
     <View style={styles.container}>
@@ -32,7 +73,8 @@ export default function ChecklistScreen() {
 
       <FlatList
         data={items}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
+        style={{ marginTop: 20 }}
         renderItem={({ item }) => (
           <View style={styles.row}>
             <Text style={[styles.label, item.done && styles.labelDone]}>
@@ -40,17 +82,16 @@ export default function ChecklistScreen() {
             </Text>
             <Switch
               value={item.done}
-              onValueChange={() => toggleItem(item.id)}
+              onValueChange={() => toggleItem(item.id, item.done)}
               trackColor={{ false: '#ccc', true: GOLD }}
               thumbColor={item.done ? PURPLE : '#f4f3f4'}
             />
           </View>
         )}
-        style={{ marginTop: 20 }}
       />
 
       <Text style={styles.hint}>
-        Check each prayer after you finish it.
+        Use this page like Ella in your scenario: check each prayer after you finish it.
       </Text>
     </View>
   );
