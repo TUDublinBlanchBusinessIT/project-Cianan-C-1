@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 
-import { db } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import {
   collection,
   addDoc,
@@ -27,12 +27,12 @@ export default function PrayerListScreen() {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
 
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
+
   useEffect(() => {
-    // 👇 db is passed as FIRST argument here
-    const q = query(
-      collection(db, 'prayers'),
-      orderBy('createdAt', 'desc')
-    );
+    const prayersRef = collection(db, 'users', uid, 'prayers');
+    const q = query(prayersRef, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = snapshot.docs.map((doc) => ({
@@ -43,12 +43,14 @@ export default function PrayerListScreen() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const addPrayer = async () => {
     if (!title.trim() || !text.trim()) return;
 
-    await addDoc(collection(db, 'prayers'), {
+    const prayersRef = collection(db, 'users', uid, 'prayers');
+
+    await addDoc(prayersRef, {
       title: title.trim(),
       text: text.trim(),
       createdAt: serverTimestamp(),

@@ -11,7 +11,7 @@ import {
   Share,
 } from 'react-native';
 
-import { db } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import {
   collection,
   addDoc,
@@ -25,9 +25,7 @@ import {
 
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
-const USER_ID = 'demoUser';
 
-// Default built-in prayers (seeded to Firestore once)
 const DEFAULT_PRAYERS = [
   {
     title: 'Short Morning Offering',
@@ -49,9 +47,11 @@ export default function InspirationScreen() {
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState(null);
 
-  const inspirationsRef = collection(db, 'users', USER_ID, 'inspirations');
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
 
-  // Seed defaults if collection is empty
+  const inspirationsRef = collection(db, 'users', uid, 'inspirations');
+
   const seedDefaults = async () => {
     for (const item of DEFAULT_PRAYERS) {
       await addDoc(inspirationsRef, {
@@ -81,21 +81,19 @@ export default function InspirationScreen() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const savePrayer = async () => {
     if (!title.trim() || !text.trim()) return;
 
     if (editingId) {
-      // edit existing user-created prayer
-      const ref = doc(db, 'users', USER_ID, 'inspirations', editingId);
+      const ref = doc(db, 'users', uid, 'inspirations', editingId);
       await updateDoc(ref, {
         title: title.trim(),
         text: text.trim(),
       });
       setEditingId(null);
     } else {
-      // add new user-created prayer
       await addDoc(inspirationsRef, {
         title: title.trim(),
         text: text.trim(),
@@ -109,10 +107,7 @@ export default function InspirationScreen() {
   };
 
   const startEdit = (item) => {
-    if (!item.userCreated) {
-      // built-in prayers can't be edited
-      return;
-    }
+    if (!item.userCreated) return;
     setEditingId(item.id);
     setTitle(item.title);
     setText(item.text);
@@ -139,7 +134,6 @@ export default function InspirationScreen() {
         Use these when you don&apos;t know what to pray.
       </Text>
 
-      {/* Add / Edit form */}
       <TextInput
         style={styles.input}
         placeholder="Prayer Title"
@@ -160,7 +154,6 @@ export default function InspirationScreen() {
         </Text>
       </TouchableOpacity>
 
-      {/* List of inspiration prayers */}
       <FlatList
         data={prayers}
         keyExtractor={(item) => item.id}
@@ -196,16 +189,8 @@ export default function InspirationScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#FFF' },
-  header: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: PURPLE,
-    marginBottom: 4,
-  },
-  subHeader: {
-    marginBottom: 16,
-    color: '#444',
-  },
+  header: { fontSize: 26, fontWeight: '700', color: PURPLE, marginBottom: 4 },
+  subHeader: { marginBottom: 16, color: '#444' },
   input: {
     borderWidth: 2,
     borderColor: GOLD,
@@ -213,10 +198,7 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
+  textArea: { height: 80, textAlignVertical: 'top' },
   saveButton: {
     backgroundColor: '#FFF',
     borderWidth: 2,
@@ -226,10 +208,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  saveButtonText: {
-    fontWeight: '600',
-    color: PURPLE,
-  },
+  saveButtonText: { fontWeight: '600', color: PURPLE },
   card: {
     padding: 14,
     borderWidth: 2,
@@ -244,14 +223,8 @@ const styles = StyleSheet.create({
     color: PURPLE,
     marginBottom: 6,
   },
-  contentText: {
-    fontSize: 14,
-    marginBottom: 10,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  contentText: { fontSize: 14, marginBottom: 10 },
+  actionsRow: { flexDirection: 'row', gap: 10 },
   actionButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -259,8 +232,5 @@ const styles = StyleSheet.create({
     borderColor: GOLD,
     borderRadius: 8,
   },
-  actionText: {
-    color: PURPLE,
-    fontWeight: '600',
-  },
+  actionText: { color: PURPLE, fontWeight: '600' },
 });

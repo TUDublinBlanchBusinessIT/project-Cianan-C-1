@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Switch } from 'react-native';
 
-import { db } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import {
   collection,
   onSnapshot,
@@ -13,7 +13,6 @@ import {
 
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
-const USER_ID = 'demoUser'; // same as HomeScreen
 
 const DEFAULT_ITEMS = [
   { label: 'Morning Prayer' },
@@ -25,9 +24,11 @@ const DEFAULT_ITEMS = [
 export default function ChecklistScreen() {
   const [items, setItems] = useState([]);
 
-  const checklistRef = collection(db, 'users', USER_ID, 'checklist');
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
 
-  // Seed defaults if checklist is empty
+  const checklistRef = collection(db, 'users', uid, 'checklist');
+
   const seedDefaults = async () => {
     for (const item of DEFAULT_ITEMS) {
       await addDoc(checklistRef, {
@@ -40,7 +41,6 @@ export default function ChecklistScreen() {
   useEffect(() => {
     const unsubscribe = onSnapshot(checklistRef, async (snapshot) => {
       if (snapshot.empty) {
-        // first time: create default items
         await seedDefaults();
         return;
       }
@@ -54,12 +54,11 @@ export default function ChecklistScreen() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const toggleItem = async (id, currentValue) => {
-    const itemRef = doc(db, 'users', USER_ID, 'checklist', id);
+    const itemRef = doc(db, 'users', uid, 'checklist', id);
     await updateDoc(itemRef, { done: !currentValue });
-    // no need to manually set state – onSnapshot will fire again
   };
 
   const completedCount = items.filter((item) => item.done).length;
@@ -91,28 +90,16 @@ export default function ChecklistScreen() {
       />
 
       <Text style={styles.hint}>
-        Use this page like Ella in your scenario: check each prayer after you finish it.
+        Use this like Ella: tick each prayer after you finish it.
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    padding: 20,
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: PURPLE,
-  },
-  subHeader: {
-    marginTop: 4,
-    fontSize: 14,
-    color: '#555',
-  },
+  container: { flex: 1, backgroundColor: '#FFF', padding: 20 },
+  header: { fontSize: 24, fontWeight: '700', color: PURPLE },
+  subHeader: { marginTop: 4, fontSize: 14, color: '#555' },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -121,16 +108,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  label: {
-    fontSize: 16,
-  },
-  labelDone: {
-    textDecorationLine: 'line-through',
-    color: '#888',
-  },
-  hint: {
-    marginTop: 20,
-    fontSize: 12,
-    color: '#666',
-  },
+  label: { fontSize: 16 },
+  labelDone: { textDecorationLine: 'line-through', color: '#888' },
+  hint: { marginTop: 20, fontSize: 12, color: '#666' },
 });

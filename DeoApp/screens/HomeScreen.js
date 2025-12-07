@@ -9,18 +9,19 @@ import {
   Alert,
 } from 'react-native';
 
-import { db } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
-const USER_ID = 'demoUser'; // fake user id for now
 
 export default function HomeScreen({ navigation }) {
   const [streak, setStreak] = useState(0);
   const [lastDate, setLastDate] = useState(null); // "YYYY-MM-DD"
 
-  // ---- Helper: get today's date as "YYYY-MM-DD"
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null; // user not ready yet
+
   const getTodayString = () => {
     const d = new Date();
     const y = d.getFullYear();
@@ -29,9 +30,8 @@ export default function HomeScreen({ navigation }) {
     return `${y}-${m}-${day}`;
   };
 
-  // ---- Load streak from Firestore once and listen for changes
   useEffect(() => {
-    const streakRef = doc(db, 'streaks', USER_ID);
+    const streakRef = doc(db, 'streaks', uid);
 
     const unsubscribe = onSnapshot(streakRef, async (snap) => {
       if (snap.exists()) {
@@ -39,7 +39,6 @@ export default function HomeScreen({ navigation }) {
         setStreak(data.streak ?? 0);
         setLastDate(data.lastDate ?? null);
       } else {
-        // if doc doesn't exist yet, create it with default values
         await setDoc(streakRef, { streak: 0, lastDate: null });
         setStreak(0);
         setLastDate(null);
@@ -47,17 +46,15 @@ export default function HomeScreen({ navigation }) {
     });
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
-  // ---- Handle streak press (update Firestore)
   const handleStreakPress = async () => {
     const today = getTodayString();
-    const streakRef = doc(db, 'streaks', USER_ID);
+    const streakRef = doc(db, 'streaks', uid);
 
     let newStreak = 1;
 
     if (lastDate) {
-      // compare days difference
       const last = new Date(lastDate);
       const now = new Date();
       last.setHours(0, 0, 0, 0);
@@ -67,11 +64,11 @@ export default function HomeScreen({ navigation }) {
 
       if (diffDays === 0) {
         Alert.alert('Already counted', 'You already logged prayer for today.');
-        return; // don’t increment twice in one day
+        return;
       } else if (diffDays === 1) {
-        newStreak = streak + 1; // kept streak
+        newStreak = streak + 1;
       } else {
-        newStreak = 1; // missed days, reset
+        newStreak = 1;
       }
     }
 
@@ -80,7 +77,6 @@ export default function HomeScreen({ navigation }) {
       lastDate: today,
     });
 
-    // Local update (UI feels instant, even before Firestore snapshot returns)
     setStreak(newStreak);
     setLastDate(today);
   };
@@ -97,11 +93,9 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Title */}
       <Text style={styles.title}>Deo</Text>
       <Text style={styles.subtitle}>Stay disciplined in daily prayer.</Text>
 
-      {/* Streak box */}
       <View style={styles.streakContainer}>
         <Text style={styles.streakLabel}>Daily Prayer Streak</Text>
 
@@ -115,7 +109,6 @@ export default function HomeScreen({ navigation }) {
         </Text>
       </View>
 
-      {/* Navigation buttons */}
       <View style={styles.buttonsWrapper}>
         <NavButton title="Prayer List" screen="PrayerList" />
         <NavButton title="Prayer Checklist" screen="Checklist" />

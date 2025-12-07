@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 
-import { db } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import {
   collection,
   addDoc,
@@ -21,16 +21,16 @@ import {
 
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
-const USER_ID = 'demoUser'; // same as Home + Checklist
 
 export default function ReflectionScreen() {
   const [entryText, setEntryText] = useState('');
   const [entries, setEntries] = useState([]);
 
-  const reflectionsRef = collection(db, 'users', USER_ID, 'reflections');
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
 
-  // Listen to Firestore for reflections
   useEffect(() => {
+    const reflectionsRef = collection(db, 'users', uid, 'reflections');
     const q = query(reflectionsRef, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -42,10 +42,12 @@ export default function ReflectionScreen() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const addEntry = async () => {
     if (!entryText.trim()) return;
+
+    const reflectionsRef = collection(db, 'users', uid, 'reflections');
 
     await addDoc(reflectionsRef, {
       text: entryText.trim(),
@@ -99,20 +101,9 @@ export default function ReflectionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    padding: 20,
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: PURPLE,
-  },
-  subHeader: {
-    marginBottom: 10,
-    color: '#444',
-  },
+  container: { flex: 1, backgroundColor: '#FFF', padding: 20 },
+  header: { fontSize: 26, fontWeight: '700', color: PURPLE },
+  subHeader: { marginBottom: 10, color: '#444' },
   input: {
     height: 120,
     borderWidth: 2,
@@ -132,11 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  addButtonText: {
-    fontWeight: '600',
-    fontSize: 16,
-    color: PURPLE,
-  },
+  addButtonText: { fontWeight: '600', fontSize: 16, color: PURPLE },
   entryCard: {
     padding: 14,
     borderWidth: 2,
@@ -144,13 +131,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
-  entryDate: {
-    fontSize: 12,
-    color: '#777',
-    marginBottom: 6,
-  },
-  entryText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
+  entryDate: { fontSize: 12, color: '#777', marginBottom: 6 },
+  entryText: { fontSize: 14, lineHeight: 20 },
 });
