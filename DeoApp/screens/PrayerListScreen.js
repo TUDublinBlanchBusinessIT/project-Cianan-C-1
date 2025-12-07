@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// screens/PrayerListScreen.js
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,23 +9,51 @@ import {
   StyleSheet,
 } from 'react-native';
 
+import { db } from '../firebaseConfig';
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+} from 'firebase/firestore';
+
+const GOLD = '#FFD700';
+const PURPLE = '#6A0DAD';
+
 export default function PrayerListScreen() {
   const [prayers, setPrayers] = useState([]);
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
 
-  const addPrayer = () => {
-    if (!title.trim() || !text.trim()) {
-      return;
-    }
+  useEffect(() => {
+    // 👇 db is passed as FIRST argument here
+    const q = query(
+      collection(db, 'prayers'),
+      orderBy('createdAt', 'desc')
+    );
 
-    const newPrayer = {
-      id: Date.now().toString(),
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setPrayers(list);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const addPrayer = async () => {
+    if (!title.trim() || !text.trim()) return;
+
+    await addDoc(collection(db, 'prayers'), {
       title: title.trim(),
       text: text.trim(),
-    };
+      createdAt: serverTimestamp(),
+    });
 
-    setPrayers(prev => [newPrayer, ...prev]);
     setTitle('');
     setText('');
   };
@@ -54,7 +83,7 @@ export default function PrayerListScreen() {
 
       <FlatList
         data={prayers}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.prayerItem}>
             <Text style={styles.prayerTitle}>{item.title}</Text>
@@ -66,9 +95,6 @@ export default function PrayerListScreen() {
     </View>
   );
 }
-
-const GOLD = '#FFD700';
-const PURPLE = '#6A0DAD';
 
 const styles = StyleSheet.create({
   container: {
