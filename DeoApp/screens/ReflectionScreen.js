@@ -1,5 +1,5 @@
 // screens/ReflectionScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,24 +9,64 @@ import {
   StyleSheet,
 } from 'react-native';
 
+import { db } from '../firebaseConfig';
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+} from 'firebase/firestore';
+
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
+const USER_ID = 'demoUser'; // same as Home + Checklist
 
 export default function ReflectionScreen() {
   const [entryText, setEntryText] = useState('');
   const [entries, setEntries] = useState([]);
 
-  const addEntry = () => {
+  const reflectionsRef = collection(db, 'users', USER_ID, 'reflections');
+
+  // Listen to Firestore for reflections
+  useEffect(() => {
+    const q = query(reflectionsRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setEntries(list);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const addEntry = async () => {
     if (!entryText.trim()) return;
 
-    const newEntry = {
-      id: Date.now().toString(),
+    await addDoc(reflectionsRef, {
       text: entryText.trim(),
-      date: new Date().toLocaleString(),
-    };
+      createdAt: serverTimestamp(),
+    });
 
-    setEntries(prev => [newEntry, ...prev]);
     setEntryText('');
+  };
+
+  const renderItem = ({ item }) => {
+    let dateString = '';
+    if (item.createdAt && item.createdAt.toDate) {
+      dateString = item.createdAt.toDate().toLocaleString();
+    }
+
+    return (
+      <View style={styles.entryCard}>
+        <Text style={styles.entryDate}>{dateString}</Text>
+        <Text style={styles.entryText}>{item.text}</Text>
+      </View>
+    );
   };
 
   return (
@@ -50,13 +90,8 @@ export default function ReflectionScreen() {
 
       <FlatList
         data={entries}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.entryCard}>
-            <Text style={styles.entryDate}>{item.date}</Text>
-            <Text style={styles.entryText}>{item.text}</Text>
-          </View>
-        )}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
         style={{ marginTop: 20 }}
       />
     </View>
@@ -100,7 +135,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontWeight: '600',
     fontSize: 16,
-    color: PURPLE
+    color: PURPLE,
   },
   entryCard: {
     padding: 14,
