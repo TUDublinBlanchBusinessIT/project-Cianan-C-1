@@ -1,5 +1,5 @@
 // screens/InspirationScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,56 +11,97 @@ import {
   Share,
 } from 'react-native';
 
+import { db } from '../firebaseConfig';
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  doc,
+  updateDoc,
+  query,
+  orderBy,
+  serverTimestamp,
+} from 'firebase/firestore';
+
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
+const USER_ID = 'demoUser';
 
+// Default built-in prayers (seeded to Firestore once)
 const DEFAULT_PRAYERS = [
   {
-    id: '1',
     title: 'Short Morning Offering',
     text: 'Lord, I offer You this day, all my thoughts, words, actions, joys and sufferings, in union with Your Sacred Heart.',
-    userCreated: false,
   },
   {
-    id: '2',
     title: 'Prayer Before Study',
     text: 'Holy Spirit, guide my mind as I study. Help me to understand, remember, and use this knowledge for Your glory.',
-    userCreated: false,
   },
   {
-    id: '3',
     title: 'Prayer for Patience',
     text: 'Jesus, meek and humble of heart, make my heart like Yours. Give me patience with others and with myself.',
-    userCreated: false,
   },
 ];
 
 export default function InspirationScreen() {
-  const [prayers, setPrayers] = useState(DEFAULT_PRAYERS);
+  const [prayers, setPrayers] = useState([]);
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState(null);
 
-  const savePrayer = () => {
+  const inspirationsRef = collection(db, 'users', USER_ID, 'inspirations');
+
+  // Seed defaults if collection is empty
+  const seedDefaults = async () => {
+    for (const item of DEFAULT_PRAYERS) {
+      await addDoc(inspirationsRef, {
+        title: item.title,
+        text: item.text,
+        userCreated: false,
+        createdAt: serverTimestamp(),
+      });
+    }
+  };
+
+  useEffect(() => {
+    const q = query(inspirationsRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (snapshot.empty) {
+        await seedDefaults();
+        return;
+      }
+
+      const list = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      setPrayers(list);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const savePrayer = async () => {
     if (!title.trim() || !text.trim()) return;
 
     if (editingId) {
-      setPrayers(prev =>
-        prev.map(p =>
-          p.id === editingId
-            ? { ...p, title: title.trim(), text: text.trim() }
-            : p
-        )
-      );
+      // edit existing user-created prayer
+      const ref = doc(db, 'users', USER_ID, 'inspirations', editingId);
+      await updateDoc(ref, {
+        title: title.trim(),
+        text: text.trim(),
+      });
       setEditingId(null);
     } else {
-      const newPrayer = {
-        id: Date.now().toString(),
+      // add new user-created prayer
+      await addDoc(inspirationsRef, {
         title: title.trim(),
         text: text.trim(),
         userCreated: true,
-      };
-      setPrayers(prev => [newPrayer, ...prev]);
+        createdAt: serverTimestamp(),
+      });
     }
 
     setTitle('');
@@ -68,7 +109,10 @@ export default function InspirationScreen() {
   };
 
   const startEdit = (item) => {
-    if (!item.userCreated) return;
+    if (!item.userCreated) {
+      // built-in prayers can't be edited
+      return;
+    }
     setEditingId(item.id);
     setTitle(item.title);
     setText(item.text);
@@ -91,6 +135,9 @@ export default function InspirationScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Prayer Inspiration</Text>
+      <Text style={styles.subHeader}>
+        Use these when you don&apos;t know what to pray.
+      </Text>
 
       {/* Add / Edit form */}
       <TextInput
@@ -113,7 +160,7 @@ export default function InspirationScreen() {
         </Text>
       </TouchableOpacity>
 
-      {/* List of prayers */}
+      {/* List of inspiration prayers */}
       <FlatList
         data={prayers}
         keyExtractor={(item) => item.id}
@@ -153,7 +200,11 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '700',
     color: PURPLE,
+    marginBottom: 4,
+  },
+  subHeader: {
     marginBottom: 16,
+    color: '#444',
   },
   input: {
     borderWidth: 2,
