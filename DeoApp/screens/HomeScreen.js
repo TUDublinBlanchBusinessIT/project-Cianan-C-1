@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Image,
 } from 'react-native';
 
 import { auth, db } from '../firebaseConfig';
@@ -93,6 +94,13 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.bannerWrapper}>
+        <Image
+          source={require('../assets/Deo App Banner.png')}
+          style={styles.bannerImage}
+          resizeMode="cover"
+        />
+      </View>
       <Text style={styles.title}>Deo</Text>
       <Text style={styles.subtitle}>Stay disciplined in daily prayer.</Text>
 
@@ -126,6 +134,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     alignItems: 'center',
+  },
+    bannerWrapper: {
+    width: '100%',
+    borderRadius: 18,
+    overflow: 'hidden',    // rounds the image corners
+    marginBottom: 20,
+  },
+  bannerImage: {
+    width: '100%',
+    height: 160,           // adjust if you want it taller/shorter
   },
   title: {
     fontSize: 36,
