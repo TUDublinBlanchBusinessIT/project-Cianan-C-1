@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  Dimensions,
 } from 'react-native';
 
 import { auth, db } from '../firebaseConfig';
@@ -15,6 +16,10 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 const GOLD = '#FFD700';
 const PURPLE = '#6A0DAD';
+
+// detect phone vs larger screen
+const { width } = Dimensions.get('window');
+const isPhone = width < 600;
 
 export default function HomeScreen({ navigation }) {
   const [streak, setStreak] = useState(0);
@@ -93,82 +98,118 @@ export default function HomeScreen({ navigation }) {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent}>
+      {/* FULL-WIDTH BANNER */}
       <View style={styles.bannerWrapper}>
         <Image
           source={require('../assets/Deo App Banner.png')}
           style={styles.bannerImage}
           resizeMode="cover"
         />
-      </View>
-      <Text style={styles.title}>Deo</Text>
-      <Text style={styles.subtitle}>Stay disciplined in daily prayer.</Text>
 
-      <View style={styles.streakContainer}>
-        <Text style={styles.streakLabel}>Daily Prayer Streak</Text>
-
-        <TouchableOpacity style={styles.streakBadge} onPress={handleStreakPress}>
-          <Text style={styles.streakNumber}>{streak}</Text>
-          <Text style={styles.streakText}>days</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.streakHint}>
-          Tap after you&apos;ve prayed today.
-        </Text>
+        <View style={styles.bannerOverlay}>
+          <Text style={styles.bannerTitle}>Deo</Text>
+          <Text style={styles.bannerSubtitle}>
+            Stay disciplined in daily prayer.
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.buttonsWrapper}>
-        <NavButton title="Prayer List" screen="PrayerList" />
-        <NavButton title="Prayer Checklist" screen="Checklist" />
-        <NavButton title="Reflections" screen="Reflection" />
-        <NavButton title="Prayer Inspiration" screen="Inspiration" />
+      {/* REST OF CONTENT WITH PADDING */}
+      <View style={styles.content}>
+        <View style={styles.streakContainer}>
+          <Text style={styles.streakLabel}>Daily Prayer Streak</Text>
+
+          <TouchableOpacity
+            style={styles.streakBadge}
+            onPress={handleStreakPress}
+          >
+            <Text style={styles.streakNumber}>{streak}</Text>
+            <Text style={styles.streakText}>days</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.streakHint}>
+            Tap after you&apos;ve prayed today.
+          </Text>
+        </View>
+
+        <View style={styles.buttonsWrapper}>
+          <NavButton title="Prayer List" screen="PrayerList" />
+          <NavButton title="Prayer Checklist" screen="Checklist" />
+          <NavButton title="Reflections" screen="Reflection" />
+          <NavButton title="Prayer Inspiration" screen="Inspiration" />
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
+  // outer scroll area – NO horizontal padding here
+  screen: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    alignItems: 'center',
   },
-    bannerWrapper: {
+  scrollContent: {
+    paddingBottom: 40,
+  },
+
+  // ---------- Banner ----------
+  bannerWrapper: {
     width: '100%',
-    borderRadius: 18,
-    overflow: 'hidden',    // rounds the image corners
-    marginBottom: 20,
+    height: isPhone ? 180 : 260, // smaller on phone, taller on bigger screens
+    position: 'relative',
+    overflow: 'hidden',
   },
   bannerImage: {
     width: '100%',
-    height: 160,           // adjust if you want it taller/shorter
+    height: '100%',
   },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
+  bannerOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 16,
+    alignItems: 'center',
+    backgroundColor: 'transparent', // no big glow bar
+  },
+  bannerTitle: {
+    fontSize: isPhone ? 32 : 40,
+    fontWeight: '900',
     color: PURPLE,
+    textShadowColor: 'rgba(255, 215, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
-  subtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    color: '#444',
-    textAlign: 'center',
+  bannerSubtitle: {
+    fontSize: isPhone ? 14 : 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
+
+  // ---------- Inner content (streak + buttons) ----------
+  content: {
+    width: '100%',
+    paddingHorizontal: 20,  // padding is only for content, not banner
+    alignItems: 'center',
+    marginTop: 24,
+  },
+
   streakContainer: {
-    marginTop: 40,
     alignItems: 'center',
   },
   streakLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
   streakBadge: {
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 26,
-    borderRadius: 30,
+    marginTop: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 40,
     borderWidth: 2,
     borderColor: GOLD,
     flexDirection: 'row',
@@ -188,8 +229,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+
   buttonsWrapper: {
-    marginTop: 40,
+    marginTop: 32,
     width: '100%',
   },
   button: {
@@ -199,7 +241,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 10,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   buttonText: {
     textAlign: 'center',
