@@ -17,10 +17,13 @@ const PURPLE = '#6A0DAD';
 
 export default function HomeScreen({ navigation }) {
   const [streak, setStreak] = useState(0);
-  const [lastDate, setLastDate] = useState(null); // "YYYY-MM-DD"
+  const [lastDate, setLastDate] = useState(null);
 
-  const uid = auth.currentUser?.uid;
-  if (!uid) return null; // user not ready yet
+  const user = auth.currentUser;
+  const uid = user?.uid;
+  const email = user?.email || '';
+
+  if (!uid) return null;
 
   const getTodayString = () => {
     const d = new Date();
@@ -85,7 +88,7 @@ export default function HomeScreen({ navigation }) {
     <TouchableOpacity
       style={styles.button}
       onPress={() => navigation.navigate(screen)}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
     >
       <Text style={styles.buttonText}>{title}</Text>
     </TouchableOpacity>
@@ -93,9 +96,21 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Deo</Text>
-      <Text style={styles.subtitle}>Stay disciplined in daily prayer.</Text>
+      {/* Banner */}
+      <View style={styles.banner}>
+        <Text style={styles.bannerIcon}>⛪</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.bannerTitle}>Deo</Text>
+          <Text style={styles.bannerSubtitle}>
+            Stay disciplined in daily prayer.
+          </Text>
+          {email ? (
+            <Text style={styles.bannerUser}>Logged in as {email}</Text>
+          ) : null}
+        </View>
+      </View>
 
+      {/* Streak box */}
       <View style={styles.streakContainer}>
         <Text style={styles.streakLabel}>Daily Prayer Streak</Text>
 
@@ -109,6 +124,7 @@ export default function HomeScreen({ navigation }) {
         </Text>
       </View>
 
+      {/* Navigation buttons */}
       <View style={styles.buttonsWrapper}>
         <NavButton title="Prayer List" screen="PrayerList" />
         <NavButton title="Prayer Checklist" screen="Checklist" />
@@ -124,35 +140,61 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    alignItems: 'center',
+    paddingTop: 40,
+    paddingBottom: 30,
   },
-  title: {
+
+  // Banner
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: GOLD,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  bannerIcon: {
     fontSize: 36,
-    fontWeight: 'bold',
+    marginRight: 12,
+  },
+  bannerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
     color: PURPLE,
   },
-  subtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    color: '#444',
-    textAlign: 'center',
+  bannerSubtitle: {
+    fontSize: 13,
+    color: '#333',
   },
+  bannerUser: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#444',
+  },
+
+  // Streak
   streakContainer: {
-    marginTop: 40,
+    marginTop: 10,
     alignItems: 'center',
   },
   streakLabel: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#333',
   },
   streakBadge: {
     marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 26,
-    borderRadius: 30,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 40,
     borderWidth: 2,
     borderColor: GOLD,
+    backgroundColor: '#f8f0c8',
     flexDirection: 'row',
     alignItems: 'baseline',
   },
@@ -164,29 +206,31 @@ const styles = StyleSheet.create({
   },
   streakText: {
     fontSize: 16,
+    color: '#333',
   },
   streakHint: {
     marginTop: 6,
     fontSize: 12,
     color: '#666',
   },
+
+  // Nav buttons
   buttonsWrapper: {
-    marginTop: 40,
-    width: '100%',
+    marginTop: 30,
   },
   button: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: GOLD,
+    backgroundColor: PURPLE,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 10,
-    marginBottom: 10,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: GOLD,
   },
   buttonText: {
     textAlign: 'center',
     fontSize: 16,
-    fontWeight: '600',
-    color: PURPLE,
+    fontWeight: '700',
+    color: '#FFF',
   },
 });
